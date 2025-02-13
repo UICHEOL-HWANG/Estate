@@ -2,12 +2,9 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 
 class Settings(BaseSettings):
-    database_url: str
-    secret_key: str
-    algorithm: str
-    access_token_expire_minutes: int = 30
+    database_url: str  # ✅ 데이터베이스 URL만 유지
 
     class Config:
-        env_file = Path(__file__).resolve().parent.parent / ".env"
+        env_file = Path(__file__).resolve().parent.parent / ".env"  # ✅ .env 파일에서 불러오기
 
 settings = Settings()

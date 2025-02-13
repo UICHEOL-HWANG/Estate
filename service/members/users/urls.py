@@ -8,7 +8,7 @@ from .views import (RegisterView,
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),  # 회원가입 API
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),  # ✅
-    path('profile_update/', UserUpdateView.as_view(), name='user_update'),
+    path('profile/update/', UserUpdateView.as_view(), name='user_update'),
     path('profile/', UserDetailView.as_view(), name='user_detail'),
     path('resign/', UserDeleteView.as_view(), name='user_delete'),
 ]

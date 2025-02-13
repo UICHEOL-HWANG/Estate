@@ -10,9 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .permissions import IsOwner
 
-
 User = get_user_model()
-
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
