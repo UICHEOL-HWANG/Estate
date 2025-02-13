@@ -6,6 +6,15 @@ __pycache__/
 # C extensions
 *.so
 
+.idea
+
+hub/workdir/data/서울시 부동산 실거래가 정보(2022~2025).csv
+hub/workdir/data/cleaned_data.csv
+hub/workdir/models/
+hub/workdir/.ipynb_checkpoints/
+hub/workdir/note/logs.log
+hub/workdir/note/
+
 # Distribution / packaging
 .Python
 build/
