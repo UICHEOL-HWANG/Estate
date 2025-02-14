@@ -1,20 +1,17 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class PostCreate(BaseModel):
-    title: str
+class CommentCreate(BaseModel):
     content: str
 
-class PostUpdate(BaseModel):
-    title: str
-    content: str
-
-class PostResponse(BaseModel):
+class CommentResponse(BaseModel):
     id: int
-    title: str
-    content: str
+    post_id: int
     author_id: int
+    content: str
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
