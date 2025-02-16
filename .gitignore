@@ -10,6 +10,7 @@ __pycache__/
 
 
 service/like/like.db
+service/board/test.db
 
 hub/workdir/data/서울시 부동산 실거래가 정보(2022~2025).csv
 hub/workdir/data/cleaned_data.csv
