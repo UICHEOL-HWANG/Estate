@@ -1,5 +1,5 @@
 """
-ASGI config for members project.
+ASGI util for members project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

@@ -1,5 +1,5 @@
 """
-WSGI config for members project.
+WSGI util for members project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

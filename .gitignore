@@ -10,6 +10,10 @@ __pycache__/
 
 
 service/like/like.db
+
+service/like/migrations
+service/board/migrations
+service/board/alembic.ini
 service/board/test.db
 
 hub/workdir/data/서울시 부동산 실거래가 정보(2022~2025).csv
