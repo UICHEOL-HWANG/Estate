@@ -7,7 +7,17 @@ from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from users.serializers import UserSerializer  # ✅ `users` 앱의 `UserSerializer` 재사용
 
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
+
 User = get_user_model()
+
+
+def get_csrf_token(request):
+    """CSRF 토큰을 반환하는 엔드포인트"""
+    csrf_token = get_token(request)
+    return JsonResponse({"csrfToken": csrf_token})
+
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -16,6 +26,7 @@ class LoginView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
 
+        print("🔍 요청된 데이터:", request.data)
         if not username or not password:
             return Response({"error": "아이디와 비밀번호를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
 
