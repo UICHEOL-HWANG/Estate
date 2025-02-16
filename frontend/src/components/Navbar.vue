@@ -83,8 +83,15 @@
       };
   
       onMounted(() => {
-        window.addEventListener("resize", handleResize);
-        authStore.loadUser(); // ✅ 페이지 로딩 시 사용자 정보 불러오기
+      window.addEventListener("resize", handleResize);
+
+      // ✅ 로그인 상태인 경우에만 사용자 정보 불러오기
+      if (authStore.isAuthenticated) {
+        console.log("🔍 로그인 상태 확인됨, 사용자 정보 불러오기...");
+        authStore.loadUser();
+      } else {
+        console.log("❌ 로그인되지 않음, loadUser() 실행 안 함");
+      }
       });
   
       onBeforeUnmount(() => {

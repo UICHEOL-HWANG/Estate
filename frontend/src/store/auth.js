@@ -16,14 +16,12 @@ export const useAuthStore = defineStore("auth", {
   actions: {
     async login(credentials) {
       try {
-        
         console.log("🔍 로그인 요청 데이터:", credentials);
 
         const loginData = {
-            username: credentials.username,
-            password: credentials.password,
-          };
-  
+          username: credentials.username,
+          password: credentials.password,
+        };
 
         // ✅ `api.post`로 변경하여 Content-Type 포함
         const response = await api.post("/api/account/login/", loginData);
@@ -44,49 +42,68 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    async signup(credentials) {
+      try {
+        const response = await api.post("/api/users/register/", {
+          username: credentials.username,
+          password: credentials.password,
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("✅ 회원가입 성공:", response.data);
+        return { success: true };
+      } catch (error) {
+        console.error("🚨 회원가입 실패:", error.response?.data || error.message);
+        return { success: false, message: error.response?.data?.error || "회원가입 실패" };
+      }
+    },
+
     async loadUser() {
-        if (!this.accessToken) {
-          console.warn("🚨 액세스 토큰 없음. 사용자 정보를 불러올 수 없습니다.");
-          return;
-        }
-  
+      if (!this.accessToken) {
+        console.warn("🚨 액세스 토큰 없음. 사용자 정보를 불러올 수 없습니다.");
+        return;
+      }
+
+      try {
+        const response = await api.get("/api/users/profile/", {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`, // ✅ Bearer 토큰 추가
+          },
+        });
+
+        this.user = response.data;
+        console.log("✅ 사용자 정보 로드 성공:", this.user);
+      } catch (error) {
+        console.error("🚨 사용자 정보를 가져오지 못했습니다:", error.response?.data || error.message);
+        this.user = null;
+        this.logout(); // ✅ 사용자 정보 로드 실패 시 로그아웃
+      }
+    },
+
+    async logout() {
+      if (this.refreshToken) { // ✅ refreshToken이 있을 때만 API 요청
         try {
-          const response = await api.get("/api/users/profile/", {
+          await api.post("/api/account/logout/", { refresh: this.refreshToken }, {
             headers: {
-              Authorization: `Bearer ${this.accessToken}`, // ✅ Bearer 토큰 추가
+              "Content-Type": "application/json",
             },
           });
-  
-          this.user = response.data;
-          console.log("✅ 사용자 정보 로드 성공:", this.user);
         } catch (error) {
-          console.error("🚨 사용자 정보를 가져오지 못했습니다:", error.response?.data || error.message);
-          this.user = null;
-          this.logout(); // ✅ 사용자 정보 로드 실패 시 로그아웃
+          console.warn("🚨 로그아웃 요청 실패:", error.response?.data || error.message);
         }
-      },
+      }
 
-      async logout() {
-        if (this.refreshToken) { // ✅ refreshToken이 있을 때만 API 요청
-          try {
-            await api.post("/api/account/logout/", { refresh: this.refreshToken }, {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            });
-          } catch (error) {
-            console.warn("🚨 로그아웃 요청 실패:", error.response?.data || error.message);
-          }
-        }
-  
-        // ✅ 로그아웃 후 상태 초기화
-        this.accessToken = null;
-        this.refreshToken = null;
-        this.user = null;
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-  
-        console.log("✅ 로그아웃 완료");
-      },
+      // ✅ 로그아웃 후 상태 초기화
+      this.accessToken = null;
+      this.refreshToken = null;
+      this.user = null;
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+
+      console.log("✅ 로그아웃 완료");
     },
+  },
 });
