@@ -6,6 +6,8 @@ from dto.comment import CommentCreate, CommentResponse
 from util.auth import get_user_info
 from typing import List
 
+from util.mapping import get_likes_count
+
 comment_router = APIRouter(
     prefix="/comment",
     tags=["comment"],
@@ -37,10 +39,17 @@ def create_comment(
 
     return {"message": "댓글이 성공적으로 등록되었습니다.", "comment": CommentResponse.from_orm(new_comment)}
 
-# ✅ 특정 게시글의 댓글 목록 조회
-@comment_router.get("/{post_id}/", response_model=List[CommentResponse])
-def get_comments(post_id: int, db: Session = Depends(get_db)):
+@comment_router.get("/{post_id}/", response_model=list[CommentResponse])
+async def get_comments(post_id: int, db: Session = Depends(get_db)):
+    """
+    특정 게시글의 댓글 목록 조회 (+ 각 댓글의 좋아요 개수 포함)
+    """
     comments = db.query(Comment).filter(Comment.post_id == post_id).all()
+
+    # ✅ 각 댓글의 좋아요 개수 가져오기 (비동기 처리)
+    for comment in comments:
+        comment.like_count = await get_likes_count(comment.id, "comment")  # ✅ 댓글 좋아요 개수 추가
+
     return comments
 
 # ✅ 댓글 수정
