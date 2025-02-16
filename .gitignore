@@ -9,6 +9,8 @@ __pycache__/
 .idea
 
 
+service/like/like.db
+
 service/like/migrations
 service/board/migrations
 service/board/alembic.ini
