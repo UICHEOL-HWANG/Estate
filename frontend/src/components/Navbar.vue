@@ -3,7 +3,7 @@
     <div class="container mx-auto flex justify-between items-center p-4">
       <!-- 로고 -->
       <div class="text-2xl font-bold text-blue-600">
-        <router-link to="/">부동산플래닛</router-link>
+        <router-link to="/"><img src="../assets/logo.png" alt=""></router-link>
       </div>
 
       <!-- 네비게이션 메뉴 -->

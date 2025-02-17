@@ -6,7 +6,7 @@
       <!-- 텍스트 컨테이너 -->
       <div class="relative z-10 text-center">
         <h1 class="text-3xl md:text-4xl font-bold mb-3">부동산의 모든 것을 담다</h1>
-        <h2 class="text-lg md:text-xl text-gray-200">부동산플래닛</h2>
+        <h2 class="text-lg md:text-xl text-gray-200">마이홈 픽!</h2>
       </div>
   
       <!-- 🔹 반응형 검색 바 -->
