@@ -18,8 +18,8 @@ comment_router = APIRouter(
 @comment_router.post("/{post_id}/")
 def create_comment(
     post_id: int,
-    authorization: str,
     comment: CommentCreate,
+    authorization: str = Header(...),
     db: Session = Depends(get_db),
 ):
     if not authorization:
@@ -27,12 +27,13 @@ def create_comment(
 
     user_info = get_user_info(authorization)
     author_id = user_info["id"]  # ✅ Django에서 가져온 회원 ID
+    author_name = user_info["username"]
 
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
-    new_comment = Comment(post_id=post_id, author_id=author_id, content=comment.content)
+    new_comment = Comment(post_id=post_id, author_id=author_id, content=comment.content, author_name=author_name)
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)

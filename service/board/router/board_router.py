@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -21,16 +21,19 @@ board_router = APIRouter(
 )
 
 @board_router.post("/")
-def create_post(post: PostCreate, authorization: str, db: Session = Depends(get_db) ):
+def create_post(post: PostCreate, authorization: str = Header(...), db: Session = Depends(get_db) ):
     print(f"📌 Received Authorization Header: {authorization}")  # ✅ 디버깅용 로그 추가
+    print(f"📌 Received Post Data: {post.dict()}")
     # ✅ JWT 토큰을 이용하여 Django에서 회원 정보 가져오기
     user_info = get_user_info(authorization)
 
+
     print(user_info)
     author_id = user_info["id"]  # ✅ Django에서 가져온 회원 ID
+    author_name = user_info["username"]
 
     # ✅ 새로운 게시글 생성
-    new_post = Post(title=post.title, content=post.content, author_id=author_id)
+    new_post = Post(title=post.title, content=post.content, author_id=author_id, author_name=author_name)
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
@@ -47,7 +50,7 @@ def create_post(post: PostCreate, authorization: str, db: Session = Depends(get_
     }
 
 @board_router.get("/{post_id}")
-async def read_post(post_id: int, authorization: str, db: Session = Depends(get_db)):
+async def read_post(post_id: int,  db: Session = Depends(get_db), authorization: str = Header(...),):
     """
     특정 게시글을 조회하고, 좋아요 개수도 함께 반환
     """
@@ -74,7 +77,7 @@ async def read_post(post_id: int, authorization: str, db: Session = Depends(get_
 def update_post(
     post_id: int,
     post_data: PostUpdate,
-    authorization: str,
+    authorization: str = Header(...),
     db: Session = Depends(get_db),  # ✅ 필수 헤더 처리
 ):
     user_info = get_user_info(authorization)
@@ -97,7 +100,7 @@ def update_post(
 @board_router.delete("/{post_id}/")
 def delete_post(
     post_id: int,
-    authorization: str,
+    authorization: str = Header(...),
     db: Session = Depends(get_db)
 ):
     user_info = get_user_info(authorization)
@@ -140,7 +143,8 @@ async def get_all_posts(
             "author_id": post.author_id,
             "created_at": post.created_at,
             "like_count": like_count,  # ✅ 좋아요 개수 추가
-            "comment_count": comment_count  # ✅ 댓글 개수 추가
+            "comment_count": comment_count, # ✅ 댓글 개수 추가,
+            "author" : post.author_name
         })
 
     return result  # ✅ 리스트 반환

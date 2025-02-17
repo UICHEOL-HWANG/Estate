@@ -61,7 +61,7 @@
       <!-- 🔹 회원가입 -->
       <div class="text-center text-sm text-gray-600 mt-4">
         회원이 아니신가요?
-        <a href="#" class="text-blue-600 font-bold">회원가입하기</a>
+        <router-link to="/signup" class="text-blue-600 font-bold">회원가입하기</router-link>
       </div>
     </div>
   </div>

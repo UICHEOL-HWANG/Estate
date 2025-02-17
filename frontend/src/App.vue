@@ -1,16 +1,33 @@
 <template>
   <div class="font-pretendard text-gray-900">
+    <!-- 🔹 회원가입 페이지에서는 모든 컴포넌트 숨김 -->
+    <div v-if="$route.path === '/signup'">
+      <router-view />
+    </div>
 
-    
-    <!-- 🔹 회원가입 페이지(/signup)에서는 메인 콘텐츠 숨기기 -->
-    <div v-if="$route.path !== '/signup'">
+    <!-- 🔹 게시판 페이지(/board) 및 게시글 상세 페이지(/board/:postId) 중앙 정렬 -->
+    <div v-else-if="$route.path.startsWith('/board')" class="flex flex-col items-center min-h-screen">
+      <Navbar />
+      <div class="max-w-6xl w-full mx-auto p-4 md:p-8">
+        <router-view />
+      </div>
+    </div>
+
+    <!-- 🔹 글 작성 페이지(/write) 중앙 정렬 -->
+    <div v-else-if="$route.path === '/write'" class="flex justify-center items-center min-h-screen">
+      <Navbar />
+      <div class="max-w-screen-md w-full mx-auto p-6 md:p-12">
+        <router-view />
+      </div>
+    </div>
+
+    <!-- 🔹 기본 레이아웃 (홈, 기타 페이지) -->
+    <div v-else>
       <Navbar />
       <MainVisual />
       <MainContent />
+      <router-view />
     </div>
-
-    <!-- 🔹 회원가입 페이지는 라우터에서 관리 -->
-    <router-view />
   </div>
 </template>
 
