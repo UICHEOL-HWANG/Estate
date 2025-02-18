@@ -21,6 +21,13 @@
       </div>
     </div>
 
+    <div v-else-if="$route.path === '/profile'" class="flex justify-center items-center min-h-screen">
+      <Navbar />
+      <div class="max-w-screen-md w-full mx-auto p-6 md:p-12">
+        <router-view />
+      </div>
+    </div>
+
     <!-- 🔹 기본 레이아웃 (홈, 기타 페이지) -->
     <div v-else>
       <Navbar />
@@ -29,6 +36,7 @@
       <router-view />
     </div>
   </div>
+
 </template>
 
 <script>

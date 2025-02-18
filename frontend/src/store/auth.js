@@ -42,6 +42,34 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+        // ✅ 프로필 수정 요청 추가
+        async updateProfile(updatedData) {
+          if (!this.accessToken) {
+            console.warn("🚨 액세스 토큰 없음. 프로필을 업데이트할 수 없습니다.");
+            return { success: false, message: "인증이 필요합니다." };
+          }
+    
+          try {
+            const response = await api.put("/api/users/profile/update/", updatedData, {
+              headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                "Content-Type": "application/json",
+              },
+            });
+    
+            this.user.username = response.data.username;
+            this.user.intro = response.data.intro;
+    
+            console.log("✅ 프로필 업데이트 성공:", response.data);
+            return { success: true };
+          } catch (error) {
+            console.error("🚨 프로필 업데이트 실패:", error.response?.data || error.message);
+            return { success: false, message: error.response?.data?.error || "프로필 업데이트 실패" };
+          }
+        },
+
+
+
     async signup(credentials) {
       try {
         const response = await api.post("/api/users/register/", {
@@ -74,11 +102,14 @@ export const useAuthStore = defineStore("auth", {
           },
         });
 
-        this.user = response.data;
+        this.user = response.data.user;
+        this.comments = response.data.comments; // ✅ 댓글 목록 저장
         console.log("✅ 사용자 정보 로드 성공:", this.user);
+        console.log("✅ 사용자가 작성한 댓글 로드 성공:", this.comments);
       } catch (error) {
         console.error("🚨 사용자 정보를 가져오지 못했습니다:", error.response?.data || error.message);
         this.user = null;
+        this.comments = []; // ✅ 댓글 목록 초기화
         this.logout(); // ✅ 사용자 정보 로드 실패 시 로그아웃
       }
     },

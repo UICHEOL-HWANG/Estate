@@ -87,6 +87,7 @@ export default {
       console.log("모달 닫기 버튼 클릭됨"); // 🔍 디버깅용 로그 추가
       this.errorMessage = "";
       this.$emit("close");
+      this.push("/")
       
     },
     async handleLogin(){

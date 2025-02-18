@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Signup from "../components/Signup.vue"; // ✅ 올바른 파일명 적용
+import Signup from "../components/Signup.vue"; 
 import Board from "../components/Board.vue";
 import Write from "../components/Write.vue";
 import BoardDetail from "../components/BoardDetail.vue";
+import Profile from "../components//Profile.vue";
 
 const routes = [
   {
@@ -26,6 +27,11 @@ const routes = [
     component: BoardDetail,
     props: true, // ✅ 동적 라우팅 적용
   },
+  {
+    path :  "/profile",
+    name : "Profile",
+    component : Profile
+  }
 ];
 
 const router = createRouter({
