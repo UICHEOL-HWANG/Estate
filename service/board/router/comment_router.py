@@ -66,7 +66,7 @@ def update_comment(
         raise HTTPException(status_code=401, detail="인증 토큰이 제공되지 않았습니다.")
 
     user_info = get_user_info(authorization)
-    author_id = user_info["id"]
+    author_id = user_info["user"]["id"]
 
     comment = db.query(Comment).filter(Comment.id == comment_id, Comment.post_id == post_id).first()
     if not comment:
@@ -92,7 +92,7 @@ def delete_comment(
         raise HTTPException(status_code=401, detail="인증 토큰이 제공되지 않았습니다.")
 
     user_info = get_user_info(authorization)
-    author_id = user_info["id"]
+    author_id = user_info["user"]["id"]
 
     comment = db.query(Comment).filter(Comment.id == comment_id, Comment.post_id == post_id).first()
     if not comment:
@@ -104,3 +104,16 @@ def delete_comment(
     db.commit()
 
     return {"message": "댓글이 삭제되었습니다."}
+
+@comment_router.get("/user/{user_id}/", response_model=list[CommentResponse])
+async def get_user_comments(user_id: int, db: Session = Depends(get_db)):
+    """
+    특정 회원이 작성한 댓글 목록 조회
+    """
+    comments = db.query(Comment).filter(Comment.author_id == user_id).all()
+
+    # ✅ 각 댓글의 좋아요 개수 가져오기 (비동기 처리)
+    for comment in comments:
+        comment.like_count = await get_likes_count(comment.id, "comment")  # ✅ 댓글 좋아요 개수 추가
+
+    return comments

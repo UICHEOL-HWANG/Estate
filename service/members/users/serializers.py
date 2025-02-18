@@ -45,3 +45,18 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'profile_pic', 'intro']  # ✅ 비밀번호 제외
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["username", "intro"]
+
+    def validate_username(self, value):
+        if len(value) > 15:
+            raise serializers.ValidationError("닉네임은 15자 이하로 작성해야 합니다.")
+        return value
+
+    def validate_intro(self, value):
+        if len(value) > 60:
+            raise serializers.ValidationError("자기소개는 60자 이하로 작성해야 합니다.")
+        return value

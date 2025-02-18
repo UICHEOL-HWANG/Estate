@@ -29,8 +29,8 @@ def create_post(post: PostCreate, authorization: str = Header(...), db: Session 
 
 
     print(user_info)
-    author_id = user_info["id"]  # ✅ Django에서 가져온 회원 ID
-    author_name = user_info["username"]
+    author_id = user_info["user"]["id"]  # ✅ Django에서 가져온 회원 ID
+    author_name = user_info["user"]["username"]
 
     # ✅ 새로운 게시글 생성
     new_post = Post(title=post.title, content=post.content, author_id=author_id, author_name=author_name)
@@ -44,13 +44,13 @@ def create_post(post: PostCreate, authorization: str = Header(...), db: Session 
             "id": new_post.id,
             "title": new_post.title,
             "content": new_post.content,
-            "author": user_info["username"],  # ✅ Django에서 가져온 username
+            "author": user_info["user"]["username"],  # ✅ Django에서 가져온 username
             "created_at": new_post.created_at
         }
     }
 
 @board_router.get("/{post_id}")
-async def read_post(post_id: int,  db: Session = Depends(get_db), authorization: str = Header(...),):
+async def read_post(post_id: int,  db: Session = Depends(get_db)):
     """
     특정 게시글을 조회하고, 좋아요 개수도 함께 반환
     """
@@ -58,8 +58,6 @@ async def read_post(post_id: int,  db: Session = Depends(get_db), authorization:
     if not post:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
-    # ✅ Django 회원 서비스에서 현재 로그인한 사용자 정보 조회
-    user_info = get_user_info(authorization)
 
     # ✅ `like_service`에서 좋아요 개수 가져오기 (비동기 호출)
     like_count = await get_likes_count(post_id, "post")
@@ -68,10 +66,12 @@ async def read_post(post_id: int,  db: Session = Depends(get_db), authorization:
         "id": post.id,
         "title": post.title,
         "content": post.content,
-        "author": user_info["username"],  # ✅ Django에서 가져온 username
+        "author": post.author_name,  # ✅ Django에서 가져온 username
         "created_at": post.created_at,
         "like_count": like_count  # ✅ 좋아요 개수 포함
     }
+
+
 # ✅ 게시글 수정 (Authorization 필수)
 @board_router.put("/{post_id}/", response_model=PostResponse)
 def update_post(
@@ -81,7 +81,7 @@ def update_post(
     db: Session = Depends(get_db),  # ✅ 필수 헤더 처리
 ):
     user_info = get_user_info(authorization)
-    author_id = user_info["id"]
+    author_id = user_info["user"]["id"]
 
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
@@ -104,7 +104,7 @@ def delete_post(
     db: Session = Depends(get_db)
 ):
     user_info = get_user_info(authorization)
-    author_id = user_info["id"]
+    author_id = user_info["user"]["id"]
 
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:

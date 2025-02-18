@@ -7,17 +7,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from users.serializers import UserSerializer  # ✅ `users` 앱의 `UserSerializer` 재사용
 
-from django.http import JsonResponse
-from django.middleware.csrf import get_token
-
 User = get_user_model()
-
-
-def get_csrf_token(request):
-    """CSRF 토큰을 반환하는 엔드포인트"""
-    csrf_token = get_token(request)
-    return JsonResponse({"csrfToken": csrf_token})
-
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
