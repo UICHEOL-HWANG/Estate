@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:8009"
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: True
