@@ -10,6 +10,8 @@ class CommentResponse(BaseModel):
     author_id: int
     content: str
     created_at: datetime
+    author_name: str
+    like_count: int = 0
 
     class Config:
         from_attributes = True

@@ -3,6 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy import func
+import redis
+import json
+import asyncio
 
 from model.database import get_db
 from model.models import Post, Comment
@@ -20,6 +23,12 @@ board_router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+# Caching Ready
+r = redis.Redis(host="localhost", port=6378, decode_responses=True)
+
+CACHE_EXPIRE_TIME_POSTS = 60  # ✅ 캐시 TTL (1분)
+CACHE_EXPIRE_TIME_LIKES = 300
+
 @board_router.post("/")
 def create_post(post: PostCreate, authorization: str = Header(...), db: Session = Depends(get_db) ):
     print(f"📌 Received Authorization Header: {authorization}")  # ✅ 디버깅용 로그 추가
@@ -28,9 +37,8 @@ def create_post(post: PostCreate, authorization: str = Header(...), db: Session 
     user_info = get_user_info(authorization)
 
 
-    print(user_info)
-    author_id = user_info["user"]["id"]  # ✅ Django에서 가져온 회원 ID
-    author_name = user_info["user"]["username"]
+    author_id = user_info["id"]  # ✅ Django에서 가져온 회원 ID
+    author_name = user_info["username"]
 
     # ✅ 새로운 게시글 생성
     new_post = Post(title=post.title, content=post.content, author_id=author_id, author_name=author_name)
@@ -38,50 +46,70 @@ def create_post(post: PostCreate, authorization: str = Header(...), db: Session 
     db.commit()
     db.refresh(new_post)
 
-    return {
-        "message": "게시글이 성공적으로 등록되었습니다.",
-        "post": {
-            "id": new_post.id,
-            "title": new_post.title,
-            "content": new_post.content,
-            "author": user_info["user"]["username"],  # ✅ Django에서 가져온 username
-            "created_at": new_post.created_at
-        }
+    # ✅ Redis Stream에 게시글 생성 이벤트 추가
+    event_data = {
+        "event_type": "create",
+        "post_id": new_post.id,
+        "title": new_post.title,
+        "content": new_post.content,
+        "author": new_post.author_name,
+        "created_at": str(new_post.created_at)
     }
+    r.xadd("post_stream", event_data)
+
+    return {"message": "게시글이 등록되었습니다.", "post": event_data}
 
 @board_router.get("/{post_id}")
-async def read_post(post_id: int,  db: Session = Depends(get_db)):
+async def read_post(post_id: int, db: Session = Depends(get_db)):
     """
-    특정 게시글을 조회하고, 좋아요 개수도 함께 반환
+    ✅ 특정 게시글을 조회하고, 좋아요 개수를 캐싱하여 반환
     """
+    cache_key = f"post:{post_id}"
+
+    # ✅ 1️⃣ Redis 캐시 확인
+    cached_data = r.get(cache_key)
+    if cached_data:
+        print(f"📌 Redis 캐시에서 게시글 {post_id} 조회")
+        return json.loads(cached_data)
+
+    # ✅ 2️⃣ DB 조회
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
+    # ✅ 3️⃣ 좋아요 개수 캐싱 확인
+    like_cache_key = f"like_count:post:{post_id}"
+    cached_likes = r.get(like_cache_key)
+    if cached_likes is not None:
+        like_count = int(cached_likes)
+    else:
+        like_count = await get_likes_count(post_id, "post")
+        r.setex(like_cache_key, CACHE_EXPIRE_TIME_LIKES, like_count)
 
-    # ✅ `like_service`에서 좋아요 개수 가져오기 (비동기 호출)
-    like_count = await get_likes_count(post_id, "post")
-
-    return {
+    # ✅ 4️⃣ 최종 데이터 구성
+    post_data = {
         "id": post.id,
         "title": post.title,
         "content": post.content,
-        "author": post.author_name,  # ✅ Django에서 가져온 username
-        "created_at": post.created_at,
-        "like_count": like_count  # ✅ 좋아요 개수 포함
+        "author": post.author_name,
+        "created_at": post.created_at.isoformat(),  # ✅ JSON 직렬화 가능하도록 변환
+        "like_count": like_count
     }
 
+    # ✅ 5️⃣ Redis 캐싱 (5분 TTL 설정)
+    r.setex(cache_key, CACHE_EXPIRE_TIME_POSTS, json.dumps(post_data))
+    print(f"📌 Redis에 게시글 {post_id} 캐싱 완료 (TTL: {CACHE_EXPIRE_TIME_POSTS}초)")
 
-# ✅ 게시글 수정 (Authorization 필수)
-@board_router.put("/{post_id}/", response_model=PostResponse)
-def update_post(
-    post_id: int,
-    post_data: PostUpdate,
-    authorization: str = Header(...),
-    db: Session = Depends(get_db),  # ✅ 필수 헤더 처리
-):
+    return post_data
+
+
+@board_router.put("/{post_id}/")
+def update_post(post_id: int, post_data: PostUpdate, authorization: str = Header(...), db: Session = Depends(get_db)):
+    """
+    ✅ 게시글 수정 API (Redis Stream에 추가)
+    """
     user_info = get_user_info(authorization)
-    author_id = user_info["user"]["id"]
+    author_id = user_info["id"]
 
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
@@ -94,17 +122,27 @@ def update_post(
     db.commit()
     db.refresh(post)
 
-    return post
+    # ✅ Redis Stream에 게시글 수정 이벤트 추가
+    event_data = {
+        "event_type": "update",
+        "post_id": post.id,
+        "title": post.title,
+        "content": post.content,
+        "updated_at": str(post.updated_at)
+    }
+    r.xadd("post_stream", event_data)
+
+    return {"message": "게시글이 수정되었습니다.", "post": event_data}
 
 # ✅ 게시글 삭제 (Authorization 필수)
+
 @board_router.delete("/{post_id}/")
-def delete_post(
-    post_id: int,
-    authorization: str = Header(...),
-    db: Session = Depends(get_db)
-):
+def delete_post(post_id: int, authorization: str = Header(...), db: Session = Depends(get_db)):
+    """
+    ✅ 게시글 삭제 API (Redis Stream에 추가)
+    """
     user_info = get_user_info(authorization)
-    author_id = user_info["user"]["id"]
+    author_id = user_info["id"]
 
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
@@ -115,40 +153,68 @@ def delete_post(
     db.delete(post)
     db.commit()
 
+    # ✅ Redis Stream에 게시글 삭제 이벤트 추가
+    event_data = {
+        "event_type": "delete",
+        "post_id": post_id
+    }
+    r.xadd("post_stream", event_data)
+
     return {"message": "게시글이 삭제되었습니다."}
 
-@board_router.get("/all/", response_model=List[dict])
-async def get_all_posts(
-    db: Session = Depends(get_db)
-):
+@board_router.get("/all/", response_model=list[dict])
+async def get_all_posts(db: Session = Depends(get_db)):
     """
     ✅ 모든 게시글 조회 API (좋아요 & 댓글 개수 포함)
     """
+
+    cache_key = "all_posts"
+
+    # ✅ 1️⃣ Redis에서 캐시된 데이터 확인
+    cached_data = r.get(cache_key)
+    if cached_data:
+        print("📌 Redis 캐시에서 게시글 목록 조회")
+        return json.loads(cached_data)  # ✅ 캐싱된 데이터 반환
+
+    # ✅ 2️⃣ DB에서 게시글 목록 조회
     posts = db.query(Post).all()
 
-    # ✅ posts가 None일 경우 빈 리스트 반환 (오류 방지)
     if not posts:
-        return []
+        return []  # ✅ 게시글이 없으면 빈 리스트 반환
 
-    # ✅ 모든 게시글 반환 (좋아요 & 댓글 개수 포함)
+    # ✅ 3️⃣ 댓글 개수를 한 번에 조회
+    post_ids = [post.id for post in posts]
+    comment_counts = {
+        post_id: count for post_id, count in
+        db.query(Comment.post_id, func.count(Comment.id))
+          .filter(Comment.post_id.in_(post_ids))
+          .group_by(Comment.post_id)
+          .all()
+    }
+
+    # ✅ 4️⃣ 좋아요 개수를 병렬로 가져오기
+    like_tasks = [get_likes_count(post.id, "post") for post in posts]
+    like_counts = await asyncio.gather(*like_tasks)  # 🚀 병렬 실행
+
+    # ✅ 5️⃣ 최종 데이터 구성 (`created_at`을 문자열로 변환)
     result = []
-    for post in posts:
-        like_count = await get_likes_count(post.id, "post")  # ✅ 게시글 좋아요 개수 가져오기
-        comment_count = db.query(func.count(Comment.id)).filter(Comment.post_id == post.id).scalar()  # ✅ 댓글 개수 조회
-
+    for idx, post in enumerate(posts):
         result.append({
             "id": post.id,
             "title": post.title,
             "content": post.content,
             "author_id": post.author_id,
-            "created_at": post.created_at,
-            "like_count": like_count,  # ✅ 좋아요 개수 추가
-            "comment_count": comment_count, # ✅ 댓글 개수 추가,
-            "author" : post.author_name
+            "author": post.author_name,
+            "created_at": post.created_at.isoformat(),  # ✅ JSON 직렬화를 위해 문자열 변환
+            "like_count": like_counts[idx],  # ✅ 비동기 병렬 처리된 좋아요 개수 사용
+            "comment_count": comment_counts.get(post.id, 0)  # ✅ 미리 가져온 댓글 개수 사용
         })
 
-    return result  # ✅ 리스트 반환
+    # ✅ 6️⃣ Redis에 캐싱 (1분 TTL 설정)
+    r.setex(cache_key, CACHE_EXPIRE_TIME_POSTS, json.dumps(result))
+    print(f"📌 Redis에 게시글 목록 캐싱 완료 (TTL: {CACHE_EXPIRE_TIME_POSTS}초)")
 
+    return result
 
 @board_router.get("/sort/", response_model=List[dict])  # ✅ 경로 변경 (`/sort/`)
 async def get_posts(

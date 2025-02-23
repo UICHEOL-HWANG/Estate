@@ -5,6 +5,8 @@ class LikeResponse(BaseModel):
     like_count: int
 
 class LikeCount(BaseModel):
-    post_id : int
-    like_count : int
+    post_id: int
+    like_count: int
 
+    class Config:
+        from_attributes = True  # ✅ ORM에서 변환 가능하도록 설정

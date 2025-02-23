@@ -1,0 +1,38 @@
+services:
+  service_postgres:
+    image: postgres:latest
+    container_name: service_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_MULTIPLE_DATABASES: "django_db,board_db,like_db"
+    networks:
+      - app_network
+    ports:
+      - "5430:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh  # ✅ 초기 데이터베
+
+  # ✅ Redis - Stream & Pub/Sub 처리
+  stream_MSA:
+    image: redis:7.4.2-alpine
+    container_name: stream_MSA
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+    ports:
+      - "6378:6379"
+
+
+networks:
+  app_network:
+    external: True
+
+volumes:
+  postgres_data:
+  redis_data:

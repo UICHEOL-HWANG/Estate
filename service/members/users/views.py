@@ -12,6 +12,12 @@ from .permissions import IsOwner
 
 from .service import get_user_comments
 
+import redis
+import json
+
+CACHE_EXPIRE_TIME_USER = 300  # ✅ 5분 캐싱
+r = redis.Redis(host="localhost", port=6378, decode_responses=True)
+
 User = get_user_model()
 
 class RegisterView(generics.CreateAPIView):
@@ -49,28 +55,40 @@ class ChangePasswordView(APIView):
 
 class UserDetailView(generics.RetrieveAPIView):
     """
-    현재 로그인한 사용자의 정보를 조회하는 API (FastAPI에서 댓글 데이터 추가)
+    ✅ 현재 로그인한 사용자의 정보를 Redis에서 캐싱하여 빠르게 조회
     """
-    serializer_class = UserDetailSerializer  # ✅ UserDetailSerializer 사용
-    permission_classes = [IsAuthenticated]  # ✅ 인증된 사용자만 접근 가능
+    serializer_class = UserDetailSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user  # ✅ 현재 로그인한 사용자 반환
 
     def retrieve(self, request, *args, **kwargs):
-        user = self.get_object()  # ✅ 로그인한 사용자 정보 가져오기
-        serializer = self.get_serializer(user)  # ✅ 유저 정보 직렬화
+        user = self.get_object()
+        cache_key = f"user_profile:{user.id}"
 
-        # ✅ FastAPI에서 사용자의 댓글 가져오기
+        # ✅ 1️⃣ Redis 캐시 확인
+        cached_user_data = r.get(cache_key)
+        if cached_user_data:
+            print(f"📌 Redis 캐시에서 사용자 {user.id} 정보 조회")
+            user_data = json.loads(cached_user_data)
+        else:
+            # ✅ 2️⃣ 캐시에 없으면 DB에서 가져오기
+            serializer = self.get_serializer(user)
+            user_data = serializer.data
+
+            # ✅ 3️⃣ Redis에 캐싱 (5분 TTL)
+            r.setex(cache_key, CACHE_EXPIRE_TIME_USER, json.dumps(user_data))
+            print(f"📌 Redis에 사용자 {user.id} 정보 캐싱 완료 (TTL: {CACHE_EXPIRE_TIME_USER}초)")
+
+        # ✅ 4️⃣ 댓글 데이터 가져오기 (Redis + FastAPI)
         comments = get_user_comments(user.id)
-        print(user.id)
 
-        # ✅ 사용자 정보 + 댓글 데이터를 함께 반환
+        # ✅ 5️⃣ 최종 응답 반환
         return Response({
-            "user": serializer.data,
+            "user": user_data,
             "comments": comments
         })
-
 class UserDeleteView(APIView):
     """
     현재 로그인한 사용자가 회원 탈퇴하는 API

@@ -40,7 +40,7 @@ export const useBoardStore = defineStore("board", {
         const token = authStore.accessToken;
 
         const response = await boardApi.get(`/board/${postId}`, {
-          headers: { Authorization: `${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         this.postDetail = response.data;
@@ -86,7 +86,7 @@ export const useBoardStore = defineStore("board", {
         const response = await boardApi.post(
           "/board/",
           { title, content },
-          { headers: { Authorization: `${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         console.log("✅ 게시글 작성 성공:", response.data);
@@ -127,7 +127,7 @@ export const useBoardStore = defineStore("board", {
         const response = await boardApi.post(
           `/comment/${postId}/`,
           { content },
-          { headers: { Authorization: `${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         console.log("✅ 댓글 작성 성공:", response.data);

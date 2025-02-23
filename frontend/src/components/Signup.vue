@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+<div class="min-h-screen flex flex-col items-center justify-center bg-gray-100 pt-20"> 
       <!-- 로고 -->
       <img src="../assets/logo.png" alt="부동산플래닛 로고" class="h-12 mb-4" />
   
